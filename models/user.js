@@ -14,6 +14,14 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    favorites: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Film'
+    }],
+    watchlist: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Film'
+    }]
 }, { collection: 'users', timestamps: true });
 
 const User = mongoose.model('User', userSchema);
