@@ -1,17 +1,24 @@
-const mongoose = require("mongoose");
- 
+const mongoose = require('mongoose');
 
 const filmSchema = new mongoose.Schema({
     title: { type: String, required: true },
     director: { type: String, required: true },
-    genre: { type: String, required: true }, // Örnek: Aksiyon, Dram
+    genre: { type: String, required: true },
     year: { type: Number, required: true },
-   // poster: { type: String }, // Dosya URL'si
-    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // Hangi kullanıcıya ait olduğu
-}, {
-    timestamps: true,
+    comments: [
+        {
+            user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+            comment: { type: String, required: true },
+            createdAt: { type: Date, default: Date.now }
+        }
+    ],
+    ratings: [
+        {
+            user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+            rating: { type: Number, min: 1, max: 10, required: true }
+        }
+    ],
+    averageRating: { type: Number, default: 0 }, // Ortalama puan
 });
 
-const Film = mongoose.model("Film", filmSchema);
-
-module.exports = Film;
+module.exports = mongoose.model('Film', filmSchema);

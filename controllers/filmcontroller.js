@@ -75,9 +75,220 @@ const deleteFilm = async (req, res) => {
     }
 };
 
+// Filme yorum ekleme
+const addComment = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { comment } = req.body;
+
+        if (!comment) {
+            throw new APIError("Comment is required", 400);
+        }
+
+        const film = await Film.findById(id);
+        if (!film) {
+            throw new APIError("Film not found", 404);
+        }
+
+        film.comments.push({
+            user: req.user._id,
+            comment
+        });
+
+        await film.save();
+
+        return new Response(film, "Comment added successfully").success(res);
+    } catch (error) {
+        throw new APIError(error.message, 400);
+    }
+};
+
+// Yorumu silme
+const deleteComment = async (req, res) => {
+    try {
+        const { filmId, commentId } = req.params;
+
+        const film = await Film.findById(filmId);
+        if (!film) {
+            throw new APIError("Film not found", 404);
+        }
+
+        // Yorumu bulan ve kullanıcıya ait olduğunu kontrol eden kod
+        const comment = film.comments.id(commentId);
+        if (!comment) {
+            throw new APIError("Comment not found", 404);
+        }
+
+        if (comment.user.toString() !== req.user._id.toString()) {
+            throw new APIError("You can only delete your own comments", 403);
+        }
+
+        film.comments.pull(commentId);
+        await film.save();
+
+        return new Response(null, "Comment deleted successfully").success(res);
+    } catch (error) {
+        throw new APIError(error.message, 400);
+    }
+};
+
+// Film puanlama
+const rateFilm = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { rating } = req.body;
+
+        if (!rating || rating < 1 || rating > 10) {
+            throw new APIError("Rating must be between 1 and 10", 400);
+        }
+
+        const film = await Film.findById(id);
+        if (!film) {
+            throw new APIError("Film not found", 404);
+        }
+
+        // Kullanıcının önceki puanını kontrol et
+        const existingRating = film.ratings.find(
+            r => r.user.toString() === req.user._id.toString()
+        );
+
+        if (existingRating) {
+            existingRating.rating = rating;
+        } else {
+            film.ratings.push({
+                user: req.user._id,
+                rating
+            });
+        }
+
+        // Ortalama puanı güncelle
+        const totalRating = film.ratings.reduce((sum, r) => sum + r.rating, 0);
+        film.averageRating = totalRating / film.ratings.length;
+
+        await film.save();
+
+        return new Response(film, "Rating added successfully").success(res);
+    } catch (error) {
+        throw new APIError(error.message, 400);
+    }
+};
+
+// Film detaylarını getirme (yorumlar ve puanlarla birlikte)
+const getFilmDetails = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const film = await Film.findById(id)
+            .populate('comments.user', 'name email')
+            .populate('ratings.user', 'name');
+
+        if (!film) {
+            throw new APIError("Film not found", 404);
+        }
+
+        return new Response(film, "Film details fetched successfully").success(res);
+    } catch (error) {
+        throw new APIError(error.message, 400);
+    }
+};
+
+// Filmin tüm yorumlarını getirme
+const getFilmComments = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const film = await Film.findById(id)
+            .select('comments')
+            .populate('comments.user', 'name email')
+            .sort({ 'comments.createdAt': -1 });
+
+        if (!film) {
+            throw new APIError("Film not found", 404);
+        }
+
+        return new Response(film.comments, "Comments fetched successfully").success(res);
+    } catch (error) {
+        throw new APIError(error.message, 400);
+    }
+};
+
+// Kullanıcının yaptığı yorumu getirme
+const getUserComment = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const film = await Film.findById(id)
+            .select('comments')
+            .populate('comments.user', 'name email');
+
+        if (!film) {
+            throw new APIError("Film not found", 404);
+        }
+
+        const userComment = film.comments.find(
+            comment => comment.user._id.toString() === req.user._id.toString()
+        );
+
+        return new Response(userComment || null, "User comment fetched successfully").success(res);
+    } catch (error) {
+        throw new APIError(error.message, 400);
+    }
+};
+
+// Filmin puanlarını getirme
+const getFilmRatings = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const film = await Film.findById(id)
+            .select('ratings averageRating')
+            .populate('ratings.user', 'name');
+
+        if (!film) {
+            throw new APIError("Film not found", 404);
+        }
+
+        return new Response({
+            ratings: film.ratings,
+            averageRating: film.averageRating
+        }, "Ratings fetched successfully").success(res);
+    } catch (error) {
+        throw new APIError(error.message, 400);
+    }
+};
+
+// Kullanıcının verdiği puanı getirme
+const getUserRating = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const film = await Film.findById(id).select('ratings');
+
+        if (!film) {
+            throw new APIError("Film not found", 404);
+        }
+
+        const userRating = film.ratings.find(
+            rating => rating.user.toString() === req.user._id.toString()
+        );
+
+        return new Response(userRating || null, "User rating fetched successfully").success(res);
+    } catch (error) {
+        throw new APIError(error.message, 400);
+    }
+};
+
 module.exports = {
     addFilm,
     getFilms,
     updateFilm,
-    deleteFilm
+    deleteFilm,
+    addComment,
+    deleteComment,
+    rateFilm,
+    getFilmDetails,
+    getFilmComments,
+    getUserComment,
+    getFilmRatings,
+    getUserRating
 };
