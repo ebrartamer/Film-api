@@ -1,6 +1,9 @@
 const Film = require("../models/filmModel");
 const APIError = require("../utils/errors");
 const Response = require("../utils/response");
+const upload = require('../middlewares/lib/upload');
+const path = require('path');
+const fs = require('fs');
 
 // film Ekleme
 const addFilm = async (req, res) => {
@@ -373,6 +376,41 @@ const getDirectors = async (req, res) => {
     }
 };
 
+// Film için görsel yükleme
+const uploadFilmImage = async (req, res) => {
+    try {
+        const { id } = req.params; 
+        const film = await Film.findById(id);
+        if (!film) {
+            throw new APIError("Film not found", 404);
+        }
+
+
+        if (req.file) {
+
+            if (film.poster) {
+                const oldImagePath = path.join(__dirname, '../', film.poster);
+                if (fs.existsSync(oldImagePath)) {
+                    fs.unlinkSync(oldImagePath);
+                }
+            }
+
+           
+            film.poster = 'uploads/' + req.file.filename;
+            await film.save();
+
+            return new Response({
+                film,
+                imageUrl: film.poster
+            }, "Film image uploaded successfully").success(res);
+        }
+
+        throw new APIError("No image file provided", 400);
+    } catch (error) {
+        throw new APIError(error.message, 400);
+    }
+};
+
 module.exports = {
     addFilm,
     getFilms,
@@ -388,5 +426,6 @@ module.exports = {
     getUserRating,
     searchFilms,
     getGenres,
-    getDirectors
+    getDirectors,
+    uploadFilmImage
 };

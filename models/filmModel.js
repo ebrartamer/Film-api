@@ -19,6 +19,10 @@ const filmSchema = new mongoose.Schema({
         }
     ],
     averageRating: { type: Number, default: 0 }, // Ortalama puan
-});
+    poster: {
+        type: String,  // Görsel dosyasının yolu
+        default: null
+    },
+}, { timestamps: true });
 
 module.exports = mongoose.model('Film', filmSchema);
