@@ -12,9 +12,18 @@ const {
     getFilmComments,
     getUserComment,
     getFilmRatings,
-    getUserRating
+    getUserRating,
+    searchFilms,
+    getGenres,
+    getDirectors
 } = require('../controllers/filmcontroller');
 const { tokenCheck } = require('../middlewares/auth');
+
+// Arama ve filtreleme routes
+//bu kısmı başa aldım id değeri dinamik olduğu için route akışını bozuyuyordu
+router.get('/search', searchFilms);
+router.get('/genres', getGenres);
+router.get('/directors', getDirectors);
 
 // Film routes
 router.post('/add', addFilm);

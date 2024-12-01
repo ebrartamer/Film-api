@@ -113,7 +113,7 @@ const deleteComment = async (req, res) => {
             throw new APIError("Film not found", 404);
         }
 
-        // Yorumu bulan ve kullanıcıya ait olduğunu kontrol eden kod
+        // Yorumu bulan ve kullanıcıya ait olduğunu kontrol eder
         const comment = film.comments.id(commentId);
         if (!comment) {
             throw new APIError("Comment not found", 404);
@@ -278,6 +278,101 @@ const getUserRating = async (req, res) => {
     }
 };
 
+// Arama ve Filtreleme
+const searchFilms = async (req, res) => {
+    try {
+        const { 
+            search,     
+            genre,      
+            director,   
+            year,       
+            minRating,  
+            maxRating,  
+            sortBy      
+        } = req.query;
+
+        // Filtreleme kriterleri
+        let query = {};
+
+        // Arama terimi varsa title ve director'de ara
+        if (search) {
+            query.$or = [
+                { title: { $regex: search, $options: 'i' } },
+                { director: { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        // Tür filtresi
+        if (genre) {
+            query.genre = { $regex: genre, $options: 'i' };
+        }
+
+        // Yönetmen filtresi
+        if (director) {
+            query.director = { $regex: director, $options: 'i' };
+        }
+
+        // Yıl filtresi
+        if (year) {
+            query.year = parseInt(year);
+        }
+
+        // Puan aralığı filtresi
+        if (minRating || maxRating) {
+            query.averageRating = {};
+            if (minRating) query.averageRating.$gte = parseFloat(minRating);
+            if (maxRating) query.averageRating.$lte = parseFloat(maxRating);
+        }
+
+        // Sıralama seçenekleri
+        let sort = {};
+        switch (sortBy) {
+            case 'year_desc':
+                sort = { year: -1 };
+                break;
+            case 'year_asc':
+                sort = { year: 1 };
+                break;
+            case 'rating_desc':
+                sort = { averageRating: -1 };
+                break;
+            case 'rating_asc':
+                sort = { averageRating: 1 };
+                break;
+            default:
+                sort = { createdAt: -1 }; // Varsayılan sıralama
+        }
+
+        const films = await Film.find(query)
+            .select('title director genre year averageRating poster createdAt')
+            .sort(sort);
+
+        return new Response(films, "Films fetched successfully").success(res);
+    } catch (error) {
+        throw new APIError(error.message, 400);
+    }
+};
+
+// Film türlerini getirme
+const getGenres = async (req, res) => {
+    try {
+        const genres = await Film.distinct('genre');
+        return new Response(genres, "Genres fetched successfully").success(res);
+    } catch (error) {
+        throw new APIError(error.message, 400);
+    }
+};
+
+// Yönetmenleri getirme
+const getDirectors = async (req, res) => {
+    try {
+        const directors = await Film.distinct('director');
+        return new Response(directors, "Directors fetched successfully").success(res);
+    } catch (error) {
+        throw new APIError(error.message, 400);
+    }
+};
+
 module.exports = {
     addFilm,
     getFilms,
@@ -290,5 +385,8 @@ module.exports = {
     getFilmComments,
     getUserComment,
     getFilmRatings,
-    getUserRating
+    getUserRating,
+    searchFilms,
+    getGenres,
+    getDirectors
 };
